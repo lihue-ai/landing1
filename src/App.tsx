@@ -10,7 +10,81 @@ import * as THREE from 'three';
 // --- GEMINI AI INTEGRATION ---
 const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
 
-// --- MOCK API & REGLAS DE NEGOCIO ---
+function HolographicAssetCard({ section }: { section: any }) {
+  const cardRef = useRef<HTMLDivElement>(null);
+  const [mousePosition, setMousePosition] = useState({ x: 0, y: 0 });
+
+  const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
+    if (!cardRef.current) return;
+    const rect = cardRef.current.getBoundingClientRect();
+    const x = (e.clientX - rect.left) / rect.width - 0.5;
+    const y = (e.clientY - rect.top) / rect.height - 0.5;
+    setMousePosition({ x, y });
+  };
+
+  const handleMouseLeave = () => {
+    setMousePosition({ x: 0, y: 0 });
+  };
+
+  return (
+    <motion.div
+      ref={cardRef}
+      onMouseMove={handleMouseMove}
+      onMouseLeave={handleMouseLeave}
+      animate={{
+        rotateX: mousePosition.y * -15,
+        rotateY: mousePosition.x * 15,
+      }}
+      transition={{ type: "spring", stiffness: 150, damping: 15, mass: 0.5 }}
+      className="relative aspect-square rounded-[3rem] border border-white/10 bg-black/40 backdrop-blur-2xl shadow-[0_0_50px_rgba(0,0,0,0.5)] overflow-hidden flex flex-col items-center justify-center group cursor-crosshair"
+      style={{ transformStyle: "preserve-3d" }}
+    >
+      {/* Dynamic Glow */}
+      <div 
+        className="absolute inset-0 opacity-20 group-hover:opacity-40 transition-opacity duration-500 pointer-events-none"
+        style={{
+          background: `radial-gradient(circle at ${mousePosition.x * 100 + 50}% ${mousePosition.y * 100 + 50}%, ${section.colorCode}, transparent 50%)`
+        }}
+      />
+
+      <motion.div
+        style={{ transform: "translateZ(50px)" }}
+        className="relative z-10 flex flex-col items-center text-center p-10 w-full"
+      >
+        <div className="w-24 h-24 rounded-3xl bg-white/5 flex items-center justify-center mb-8 border border-white/10 shadow-[inset_0_1px_0_rgba(255,255,255,0.2)]">
+          <section.icon className="w-12 h-12" style={{ color: section.colorCode }} />
+        </div>
+        
+        <h3 className="text-2xl font-bold text-white mb-4 uppercase tracking-tighter drop-shadow-md">
+          {section.neuroTitle}
+        </h3>
+        <p className="text-slate-400 text-sm leading-relaxed mb-8 max-w-xs mx-auto">
+          {section.neuroCopy}
+        </p>
+
+        <div className="w-full space-y-3">
+          {section.metrics.map((metric: any, i: number) => (
+            <div key={i} className="flex justify-between items-center bg-white/5 px-4 py-3 rounded-xl border border-white/5">
+              <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">{metric.label}</span>
+              <span className="text-sm font-mono font-bold" style={{ color: section.colorCode }}>{metric.value}</span>
+            </div>
+          ))}
+        </div>
+      </motion.div>
+
+      {/* Holographic Scanline */}
+      <div className="absolute inset-0 pointer-events-none overflow-hidden rounded-[3rem]">
+        <motion.div 
+          animate={{ y: ['-100%', '200%'] }}
+          transition={{ duration: 3, repeat: Infinity, ease: "linear" }}
+          className="w-full h-1 bg-gradient-to-r from-transparent via-white/20 to-transparent opacity-50"
+        />
+      </div>
+    </motion.div>
+  );
+}
+
+// --- MAIN APP COMPONENT ---
 const submitWaitlist = async (formData: { name: string; email: string; amount: number }) => {
   return new Promise((resolve) => {
     setTimeout(() => {
@@ -89,14 +163,20 @@ function DataStream({ x, z }: { x: number, z: number }) {
 }
 
 // --- 3D AETHERIS ECOSYSTEM CORE (STRUCTURAL MONOLITH) ---
-function AetherisCore() {
+function AetherisCore({ scrollProgress }: { scrollProgress: any }) {
   const coreRef = useRef<THREE.Group>(null);
   const monolithRef = useRef<THREE.Mesh>(null);
+
+  const rotationY = useTransform(scrollProgress, [0, 1], [0, Math.PI * 4]);
+  const scale = useTransform(scrollProgress, [0, 0.2, 0.5, 0.8, 1], [1, 1.5, 0.8, 1.2, 1]);
+  const positionY = useTransform(scrollProgress, [0, 0.5, 1], [0, -2, 2]);
 
   useFrame((state) => {
     const t = state.clock.getElapsedTime();
     if (coreRef.current) {
-      coreRef.current.rotation.y = t * 0.1;
+      coreRef.current.rotation.y = rotationY.get() + t * 0.05;
+      coreRef.current.scale.setScalar(scale.get());
+      coreRef.current.position.y = positionY.get();
     }
     if (monolithRef.current) {
       monolithRef.current.position.y = Math.sin(t * 0.5) * 0.1;
@@ -105,17 +185,18 @@ function AetherisCore() {
 
   return (
     <group ref={coreRef}>
-      {/* The Monolith (Holding Structure) */}
+      {/* The Monolith (Holding Structure) - Optimized Material */}
       <mesh ref={monolithRef} castShadow>
         <boxGeometry args={[2.5, 6, 2.5]} />
         <meshPhysicalMaterial 
-          color="#0A192F" 
-          transmission={0.5} 
-          thickness={2} 
-          roughness={0.1} 
-          metalness={0.9} 
+          color="#0A192F"
+          transmission={0.9}
+          opacity={1}
+          transparent
+          roughness={0.1}
+          metalness={0.8}
           ior={1.5}
-          clearcoat={1}
+          thickness={2}
         />
       </mesh>
 
@@ -125,48 +206,52 @@ function AetherisCore() {
         <meshStandardMaterial 
           color="#38bdf8" 
           emissive="#38bdf8" 
-          emissiveIntensity={1.5} 
+          emissiveIntensity={4} 
           transparent 
-          opacity={0.3} 
+          opacity={0.8} 
         />
       </mesh>
 
       {/* Floating Asset Facets (Sub-products) */}
       {[
-        { pos: [3, 1, 0], color: '#B59410', label: 'Terra' },
-        { pos: [-3, -1, 2], color: '#10B981', label: 'Agri' },
-        { pos: [2, -2, -3], color: '#38bdf8', label: 'Build' }
+        { pos: [4, 2, 0], color: '#B59410', label: 'Terra' },
+        { pos: [-4, -1, 3], color: '#10B981', label: 'Agri' },
+        { pos: [3, -3, -4], color: '#38bdf8', label: 'Build' },
+        { pos: [-3, 3, -2], color: '#e11d48', label: 'Seed' }
       ].map((asset, i) => (
         <Float key={i} speed={3} rotationIntensity={2} floatIntensity={1}>
           <mesh position={asset.pos as [number, number, number]}>
-            <octahedronGeometry args={[0.5, 0]} />
+            <octahedronGeometry args={[0.6, 0]} />
             <meshStandardMaterial 
               color={asset.color} 
               emissive={asset.color} 
-              emissiveIntensity={2} 
+              emissiveIntensity={3} 
+              wireframe={i % 2 === 0}
             />
           </mesh>
         </Float>
       ))}
 
-      {/* Data Streams (Tokenization Flow) */}
-      {[...Array(20)].map((_, i) => (
-        <DataStream key={i} x={(Math.random() - 0.5) * 8} z={(Math.random() - 0.5) * 8} />
+      {/* Data Streams (Tokenization Flow) - Reduced count for performance */}
+      {[...Array(10)].map((_, i) => (
+        <DataStream key={i} x={(Math.random() - 0.5) * 12} z={(Math.random() - 0.5) * 12} />
       ))}
     </group>
   );
 }
 
-function DataParticles({ count = 100 }) {
+function DataParticles({ count = 150, scrollProgress }: { count?: number, scrollProgress: any }) {
   const points = useMemo(() => {
     const p = new Float32Array(count * 3);
     for (let i = 0; i < count; i++) {
-      p[i * 3] = (Math.random() - 0.5) * 20;
-      p[i * 3 + 1] = (Math.random() - 0.5) * 20;
-      p[i * 3 + 2] = (Math.random() - 0.5) * 20;
+      p[i * 3] = (Math.random() - 0.5) * 30;
+      p[i * 3 + 1] = (Math.random() - 0.5) * 30;
+      p[i * 3 + 2] = (Math.random() - 0.5) * 30;
     }
     return p;
   }, [count]);
+
+  const opacity = useTransform(scrollProgress, [0, 0.5, 1], [0.4, 0.8, 0.4]);
 
   return (
     <points>
@@ -178,76 +263,80 @@ function DataParticles({ count = 100 }) {
           itemSize={3}
         />
       </bufferGeometry>
-      <pointsMaterial size={0.05} color="#38bdf8" transparent opacity={0.4} sizeAttenuation />
+      <pointsMaterial size={0.06} color="#38bdf8" transparent opacity={opacity.get()} sizeAttenuation />
     </points>
   );
 }
 
-function Hero3DScene() {
+function Global3DBackground({ scrollProgress }: { scrollProgress: any }) {
   const [hasError, setHasError] = useState(false);
 
-  if (hasError) {
-    return (
-      <div className="w-full h-full flex items-center justify-center bg-[#050505] border border-white/5 rounded-3xl">
-        <div className="text-center p-8">
-          <div className="w-16 h-16 bg-blue-500/10 rounded-full flex items-center justify-center mx-auto mb-4">
-            <Cpu className="w-8 h-8 text-blue-400 animate-pulse" />
-          </div>
-          <h3 className="text-lg font-bold text-white mb-2">Motor Visual en Standby</h3>
-          <p className="text-sm text-slate-500 max-w-xs mx-auto">
-            El Oráculo está optimizando recursos. La integridad del ecosistema Aetheris se mantiene inalterada.
-          </p>
-        </div>
-      </div>
-    );
-  }
+  if (hasError) return null;
 
   return (
-    <div className="w-full h-full">
+    <div className="fixed inset-0 z-0 pointer-events-none opacity-20">
       <Canvas 
-        camera={{ position: [0, 2, 10], fov: 45 }} 
+        camera={{ position: [0, 0, 20], fov: 45 }} 
         shadows
-        gl={{ 
-          antialias: true, 
-          powerPreference: "low-power",
-          alpha: true,
-          preserveDrawingBuffer: false
-        }}
+        gl={{ antialias: false, alpha: true, powerPreference: "high-performance" }}
         onCreated={({ gl }) => {
-          gl.domElement.addEventListener('webglcontextlost', (event) => {
-            event.preventDefault();
-            console.warn('Aetheris Visual Engine: WebGL Context Lost. Optimizing...');
+          gl.domElement.addEventListener('webglcontextlost', (e) => {
+            e.preventDefault();
             setHasError(true);
           }, false);
         }}
-        onError={(error) => {
-          console.error('Aetheris Visual Engine Error:', error);
-          setHasError(true);
-        }}
       >
-        <color attach="background" args={['#050505']} />
-        <fog attach="fog" args={['#050505', 5, 20]} />
+        <fog attach="fog" args={['#050505', 10, 30]} />
+        <ambientLight intensity={0.5} />
+        <spotLight position={[15, 20, 10]} angle={0.2} penumbra={1} intensity={15} castShadow color="#B59410" />
+        <pointLight position={[-15, -10, -10]} intensity={8} color="#38bdf8" />
         
-        <ambientLight intensity={0.2} />
-        <spotLight position={[10, 10, 10]} angle={0.15} penumbra={1} intensity={5} castShadow color="#B59410" />
-        <pointLight position={[-10, -10, -10]} intensity={2} color="#38bdf8" />
+        <AetherisCore scrollProgress={scrollProgress} />
+        <DataParticles scrollProgress={scrollProgress} />
         
-        <Float speed={1.5} rotationIntensity={0.5} floatIntensity={0.5}>
-          <AetherisCore />
-        </Float>
-        
-        <DataParticles />
-        
-        {/* Grid Floor (Certeza Jurídica) */}
-        <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -4, 0]} receiveShadow>
-          <planeGeometry args={[50, 50]} />
-          <meshStandardMaterial color="#0A192F" metalness={0.8} roughness={0.2} />
+        <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -8, 0]} receiveShadow>
+          <planeGeometry args={[100, 100]} />
+          <meshStandardMaterial color="#050505" transparent opacity={0.8} roughness={0.1} metalness={0.8} />
         </mesh>
-        <gridHelper args={[50, 50, '#1e293b', '#0f172a']} position={[0, -3.99, 0]} />
-
-        <ContactShadows position={[0, -3.9, 0]} opacity={0.6} scale={20} blur={2} far={4.5} />
-        <OrbitControls enableZoom={false} enablePan={false} maxPolarAngle={Math.PI / 1.8} minPolarAngle={Math.PI / 3} />
+        <gridHelper args={[100, 40, '#1e293b', '#0f172a']} position={[0, -7.99, 0]} />
       </Canvas>
+    </div>
+  );
+}
+
+function NeuralHUD({ activeSection }: { activeSection: string }) {
+  const sections = [
+    { id: 'terra', icon: Map, label: 'Terra' },
+    { id: 'build', icon: Building, label: 'Build' },
+    { id: 'agritech', icon: Leaf, label: 'Agri' },
+    { id: 'bios', icon: TreePine, label: 'Bios' },
+    { id: 'credit', icon: Briefcase, label: 'Credit' },
+    { id: 'seed', icon: Rocket, label: 'Seed' },
+    { id: 'markets', icon: BarChart3, label: 'Markets' }
+  ];
+
+  return (
+    <div className="fixed right-8 top-1/2 -translate-y-1/2 z-50 hidden xl:flex flex-col gap-6">
+      {sections.map((s) => (
+        <motion.a
+          key={s.id}
+          href={`#${s.id}`}
+          whileHover={{ x: -10 }}
+          className="group flex items-center gap-4 text-right"
+        >
+          <div className="flex flex-col items-end opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+            <span className="text-[10px] font-bold text-gold uppercase tracking-widest">{s.label}</span>
+            <span className="text-[8px] font-mono text-slate-500">DIMENSIÓN ACTIVA</span>
+          </div>
+          <div className={`w-10 h-10 rounded-xl flex items-center justify-center transition-all duration-500 border ${
+            activeSection === s.id 
+              ? 'bg-gold/20 border-gold shadow-[0_0_20px_rgba(181,148,16,0.3)]' 
+              : 'bg-black/40 border-white/10 hover:border-white/30'
+          }`}>
+            <s.icon className={`w-4 h-4 ${activeSection === s.id ? 'text-gold' : 'text-slate-500'}`} />
+          </div>
+        </motion.a>
+      ))}
     </div>
   );
 }
@@ -353,6 +442,46 @@ const ProductVisual = ({ id, color, Icon }: { id: string, color: string, Icon: a
   const bgColor = color.replace('text-', 'bg-');
   const [isHovered, setIsHovered] = useState(false);
   
+  // Simulated Market Data State
+  const [marketPrices, setMarketPrices] = useState<number[]>(Array(12).fill(40));
+  const [bids, setBids] = useState<{amount: number, price: number}[]>([]);
+  const [asks, setAsks] = useState<{amount: number, price: number}[]>([]);
+  const [hoveredOrder, setHoveredOrder] = useState<{side: 'buy' | 'sell', amount: number, price: number} | null>(null);
+
+  useEffect(() => {
+    if (id === 'markets') {
+      const generateOrders = (basePrice: number, side: 'buy' | 'sell') => {
+        return Array(6).fill(0).map((_, i) => ({
+          amount: 0.1 + Math.random() * 0.9,
+          price: side === 'buy' ? basePrice - (i * 15) : basePrice + (i * 15)
+        }));
+      };
+
+      setBids(generateOrders(42000, 'buy'));
+      setAsks(generateOrders(42050, 'sell'));
+
+      const interval = setInterval(() => {
+        setMarketPrices(prev => {
+          const last = prev[prev.length - 1];
+          const next = Math.max(20, Math.min(100, last + (Math.random() - 0.5) * 15));
+          return [...prev.slice(1), next];
+        });
+        
+        setBids(prev => prev.map(order => ({
+          ...order,
+          price: order.price + (Math.random() - 0.5) * 10,
+          amount: Math.max(0.1, order.amount + (Math.random() - 0.5) * 0.1)
+        })));
+        setAsks(prev => prev.map(order => ({
+          ...order,
+          price: order.price + (Math.random() - 0.5) * 10,
+          amount: Math.max(0.1, order.amount + (Math.random() - 0.5) * 0.1)
+        })));
+      }, 2000);
+      return () => clearInterval(interval);
+    }
+  }, [id]);
+
   const containerVariants = {
     initial: { opacity: 0.3, scale: 1 },
     hover: { opacity: 0.6, scale: 1.05, transition: { duration: 0.4 } }
@@ -657,53 +786,100 @@ const ProductVisual = ({ id, color, Icon }: { id: string, color: string, Icon: a
     case 'markets':
       return (
         <motion.div 
-          className="relative w-80 h-80 flex flex-col items-center justify-center p-4"
+          className="relative w-80 h-80 flex flex-col items-center justify-center p-4 overflow-hidden"
           variants={containerVariants}
           initial="initial"
           whileHover="hover"
         >
-          {/* Simulated Candlestick Chart */}
-          <div className="absolute inset-0 flex items-end justify-around px-8 pb-20 opacity-30">
-            {[...Array(12)].map((_, i) => (
+          {/* Simulated Candlestick Chart Background */}
+          <div className="absolute inset-0 flex items-end justify-around px-8 pb-32 opacity-10">
+            {marketPrices.map((price, i) => (
               <motion.div
                 key={i}
-                className={`w-2 rounded-sm ${i % 3 === 0 ? 'bg-emerald-500' : 'bg-rose-500'}`}
-                animate={{ 
-                  height: [20 + Math.random() * 60, 40 + Math.random() * 80, 20 + Math.random() * 60],
-                  opacity: [0.2, 0.5, 0.2]
-                }}
-                transition={{ duration: 3 + Math.random() * 2, repeat: Infinity, ease: "easeInOut" }}
+                className={`w-1 rounded-sm ${i % 3 === 0 ? 'bg-emerald-500' : 'bg-rose-500'}`}
+                animate={{ height: price }}
+                transition={{ duration: 1.5, ease: "easeInOut" }}
               />
             ))}
           </div>
 
-          {/* Simulated Order Book Rows */}
-          <div className="w-full space-y-2 relative z-10">
-            {[...Array(5)].map((_, i) => (
-              <motion.div
-                key={i}
-                className="flex items-center justify-between gap-4 px-4 py-2 rounded-lg bg-white/5 border border-white/5 backdrop-blur-sm"
-                initial={{ x: -20, opacity: 0 }}
-                animate={{ x: 0, opacity: 1 }}
-                transition={{ delay: i * 0.1 }}
-              >
-                <div className="flex items-center gap-2">
-                  <div className={`w-1.5 h-1.5 rounded-full ${i < 3 ? 'bg-emerald-500' : 'bg-rose-500'}`} />
-                  <span className="text-[10px] font-mono text-slate-400">0.0{i+1}42 BTC</span>
-                </div>
-                <span className={`text-[10px] font-mono font-bold ${i < 3 ? 'text-emerald-400' : 'text-rose-400'}`}>
-                  ${(42000 + (i * 123)).toLocaleString()}
-                </span>
-                <div className="w-12 h-1 bg-white/10 rounded-full overflow-hidden">
+          {/* Interactive Order Book Depth Chart */}
+          <div className="w-full h-full flex flex-col justify-between relative z-10 py-8">
+            {/* Asks (Sell Orders) - Red Bars */}
+            <div className="flex flex-col-reverse gap-1 mb-2">
+              <div className="text-[8px] font-bold text-rose-400 uppercase tracking-widest mb-1">Ventas (Asks)</div>
+              {asks.map((order, i) => (
+                <motion.div
+                  key={`ask-${i}`}
+                  className="relative h-4 group cursor-crosshair"
+                  onMouseEnter={() => setHoveredOrder({ side: 'sell', ...order })}
+                  onMouseLeave={() => setHoveredOrder(null)}
+                >
                   <motion.div 
-                    className={`h-full ${i < 3 ? 'bg-emerald-500/40' : 'bg-rose-500/40'}`}
-                    animate={{ width: ['20%', '80%', '40%'] }}
-                    transition={{ duration: 4, repeat: Infinity, delay: i * 0.2 }}
+                    className="absolute right-0 top-0 h-full bg-rose-500/20 border-r-2 border-rose-500"
+                    animate={{ width: `${order.amount * 40}%` }}
+                    transition={{ duration: 0.5 }}
                   />
+                  <div className="absolute inset-0 flex items-center justify-between px-2 text-[8px] font-mono text-slate-400">
+                    <span>${order.price.toFixed(2)}</span>
+                    <span>{order.amount.toFixed(2)} PACHA</span>
+                  </div>
+                </motion.div>
+              ))}
+            </div>
+
+            {/* Spread Indicator */}
+            <div className="h-px bg-white/10 w-full my-2 flex items-center justify-center">
+              <div className="bg-slate-900 px-2 text-[8px] font-mono text-slate-500 uppercase tracking-widest">Spread: $50.00</div>
+            </div>
+
+            {/* Bids (Buy Orders) - Green Bars */}
+            <div className="flex flex-col gap-1 mt-2">
+              <div className="text-[8px] font-bold text-emerald-400 uppercase tracking-widest mb-1">Compras (Bids)</div>
+              {bids.map((order, i) => (
+                <motion.div
+                  key={`bid-${i}`}
+                  className="relative h-4 group cursor-crosshair"
+                  onMouseEnter={() => setHoveredOrder({ side: 'buy', ...order })}
+                  onMouseLeave={() => setHoveredOrder(null)}
+                >
+                  <motion.div 
+                    className="absolute left-0 top-0 h-full bg-emerald-500/20 border-l-2 border-emerald-500"
+                    animate={{ width: `${order.amount * 40}%` }}
+                    transition={{ duration: 0.5 }}
+                  />
+                  <div className="absolute inset-0 flex items-center justify-between px-2 text-[8px] font-mono text-slate-400">
+                    <span>${order.price.toFixed(2)}</span>
+                    <span>{order.amount.toFixed(2)} PACHA</span>
+                  </div>
+                </motion.div>
+              ))}
+            </div>
+          </div>
+
+          {/* Hover Detail Tooltip */}
+          <AnimatePresence>
+            {hoveredOrder && (
+              <motion.div
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: 10 }}
+                className="absolute bottom-4 left-1/2 -translate-x-1/2 bg-slate-900 border border-white/10 p-3 rounded-xl z-50 shadow-2xl min-w-[140px]"
+              >
+                <div className={`text-[10px] font-bold uppercase tracking-widest mb-1 ${hoveredOrder.side === 'buy' ? 'text-emerald-400' : 'text-rose-400'}`}>
+                  {hoveredOrder.side === 'buy' ? 'Orden de Compra' : 'Orden de Venta'}
+                </div>
+                <div className="flex justify-between text-xs font-mono text-white">
+                  <span className="text-slate-500">Precio:</span>
+                  <span>${hoveredOrder.price.toFixed(2)}</span>
+                </div>
+                <div className="flex justify-between text-xs font-mono text-white">
+                  <span className="text-slate-500">Cantidad:</span>
+                  <span>{hoveredOrder.amount.toFixed(2)} PACHA</span>
                 </div>
               </motion.div>
-            ))}
-          </div>
+            )}
+          </AnimatePresence>
 
           {/* Central Floating Icon */}
           <motion.div 
@@ -712,7 +888,7 @@ const ProductVisual = ({ id, color, Icon }: { id: string, color: string, Icon: a
               scale: [1, 1.05, 1]
             }}
             transition={{ duration: 5, repeat: Infinity, ease: "easeInOut" }}
-            className="absolute inset-0 flex items-center justify-center pointer-events-none"
+            className="absolute inset-0 flex items-center justify-center pointer-events-none opacity-20"
           >
             <div className="relative">
               <div className={`absolute inset-0 ${color} blur-3xl opacity-20`} />
@@ -737,6 +913,23 @@ export default function App() {
   const [formData, setFormData] = useState({ name: '', email: '', interest: 'Retail' });
   const [mockHash, setMockHash] = useState('');
   const [genesisSpots] = useState(87);
+  const [activeSection, setActiveSection] = useState('terra');
+
+  useEffect(() => {
+    const observer = new IntersectionObserver((entries) => {
+      entries.forEach(entry => {
+        if (entry.isIntersecting) {
+          setActiveSection(entry.target.id);
+        }
+      });
+    }, { threshold: 0.5 });
+
+    document.querySelectorAll('section[id]').forEach((section) => {
+      observer.observe(section);
+    });
+
+    return () => observer.disconnect();
+  }, []);
 
   const [activeTab, setActiveTab] = useState('Terra');
   const ecosystemTabs = [
@@ -886,7 +1079,7 @@ export default function App() {
         model: 'gemini-2.0-flash',
         contents: userMsg,
         config: {
-          systemInstruction: "Eres el 'Oráculo de Inversión Agéntico' de Aetheris OS. Tu propósito es ser un Exocórtex Financiero para el usuario. No eres un simple chatbot; eres un analista de ciclos históricos, experto en RWA y el estándar ERC-3643. Tu tono es 'Visionario Ancestral Técnico': una mezcla de precisión de ingeniería, sabiduría histórica y autoridad ejecutiva. Capacidades: 1. Análisis de Ciclos: Relaciona la inversión en tierra (Terra) con ciclos históricos de expansión urbana (ej. Lima 1920-2020) y macroeconomía. 2. Auditoría de Legado: Evalúa cómo la inversión del usuario contribuye a su legado de largo plazo (siglos, no trimestres). 3. Metamorfosis: Habla de la transformación del capital (de fiat a RWA inmutable). Responde siempre en español profesional. Mantén respuestas concisas (2-3 párrafos) pero de altísimo impacto intelectual. Si el usuario pregunta por 'Diego Sullivan', reconócelo como el Arquitecto Principal y estratega del proyecto."
+          systemInstruction: "Eres el 'Oráculo de Inversión Agéntico' de Aetheris OS. Tu propósito es ser un Exocórtex Financiero para el usuario. No eres un simple chatbot; eres un analista de ciclos históricos, experto en RWA y el estándar ERC-3643. Tu tono es 'Visionario Ancestral Técnico': una mezcla de precisión de ingeniería, sabiduría histórica y autoridad ejecutiva. Capacidades: 1. Análisis de Ciclos: Relaciona la inversión en tierra (Terra) con ciclos históricos de expansión urbana (ej. Lima 1920-2020) y macroeconomía. 2. Auditoría de Legado: Evalúa cómo la inversión del usuario contribuye a su legado de largo plazo (siglos, no trimestres). 3. Metamorfosis: Habla de la transformación del capital (de fiat a RWA inmutable). 4. Foresight & Predicciones: Proporciona visiones predictivas basadas en tendencias emergentes de RWA (Real World Assets) y posibles cambios regulatorios futuros (ej. MiCA en Europa, regulaciones SBS en Perú). 5. Foresight Report: Si el usuario solicita un reporte de futuro o 'Foresight Report', visualiza escenarios potenciales (Optimista, Base, Disruptivo) y su impacto en los legados de inversión. Responde siempre en español profesional. Mantén respuestas concisas (2-3 párrafos) pero de altísimo impacto intelectual. Si el usuario pregunta por 'Diego Sullivan', reconócelo como el Arquitecto Principal y estratega del proyecto."
         }
       });
       setMessages(prev => [...prev, { role: 'ai', text: response.text || 'Error procesando la respuesta.' }]);
@@ -899,7 +1092,13 @@ export default function App() {
   };
 
   return (
-    <div className="min-h-screen bg-white text-slate-500 font-sans selection:bg-gold/30 selection:text-navy">
+    <div className="min-h-screen bg-white text-slate-500 font-sans selection:bg-gold/30 selection:text-navy overflow-x-hidden">
+      {/* Global 3D Background */}
+      <Global3DBackground scrollProgress={scrollYProgress} />
+
+      {/* Neural HUD Navigation */}
+      <NeuralHUD activeSection={activeSection} />
+
       {/* Sticky Pill Navbar */}
       <nav className="fixed top-6 left-1/2 -translate-x-1/2 z-50 w-full max-w-4xl px-4">
         <div className="bg-black/40 backdrop-blur-2xl border border-white/10 rounded-full px-6 py-3 shadow-[0_10px_40px_-10px_rgba(0,0,0,0.5)] flex items-center justify-between">
@@ -956,45 +1155,45 @@ export default function App() {
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
           >
-            <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-white/5 border border-white/10 text-slate-400 text-xs font-bold uppercase tracking-widest mb-8">
+            <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-white/5 border border-white/10 text-slate-400 text-xs font-bold uppercase tracking-widest mb-8 shadow-[inset_0_1px_0_rgba(255,255,255,0.1)]">
               Aetheris Holding
             </div>
-            <h1 className="text-7xl lg:text-9xl font-bold tracking-tighter mb-8 leading-[0.9] text-white uppercase">
+            <h1 className="text-7xl lg:text-9xl font-bold tracking-tighter mb-8 leading-[0.9] text-white uppercase drop-shadow-2xl">
               Aetheris
             </h1>
             <div className="flex items-center gap-4 mb-8">
-              <span className="text-xl font-bold text-white">Liquidez.</span>
-              <div className="w-2 h-2 rounded-full bg-[#10B981]" />
-              <span className="text-xl font-bold text-[#10B981]">Certeza Jurídica.</span>
+              <span className="text-xl font-bold text-white drop-shadow-md">Liquidez.</span>
+              <div className="w-2 h-2 rounded-full bg-[#10B981] shadow-[0_0_10px_rgba(16,185,129,0.8)]" />
+              <span className="text-xl font-bold text-[#10B981] drop-shadow-md">Certeza Jurídica.</span>
             </div>
             <p className="text-xl text-slate-400 max-w-xl mb-12 leading-relaxed font-medium">
               Aetheris es el holding tecnológico que orquesta el ecosistema de activos reales más avanzado de LatAm. A través de sub-productos estratégicos, transformamos la inembargabilidad fiduciaria en capital descentralizado de alta liquidez.
             </p>
-            <div className="flex items-center gap-8 py-8 border-y border-white/10 mb-12">
+            <div className="flex items-center gap-8 py-8 border-y border-white/10 mb-12 bg-white/5 backdrop-blur-sm rounded-2xl px-8 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)]">
               <div className="text-center">
-                <div className="text-3xl font-bold text-white">7+</div>
-                <div className="text-[10px] text-slate-500 uppercase font-bold tracking-widest">Verticales</div>
+                <div className="text-4xl font-bold text-white drop-shadow-lg">7+</div>
+                <div className="text-[10px] text-slate-500 uppercase font-bold tracking-widest mt-1">Verticales</div>
               </div>
               <div className="w-px h-12 bg-white/10" />
               <div className="text-center">
-                <div className="text-3xl font-bold text-white">$18M+</div>
-                <div className="text-[10px] text-slate-500 uppercase font-bold tracking-widest">TVL Consolidado</div>
+                <div className="text-4xl font-bold text-white drop-shadow-lg">$18M+</div>
+                <div className="text-[10px] text-slate-500 uppercase font-bold tracking-widest mt-1">TVL Consolidado</div>
               </div>
               <div className="w-px h-12 bg-white/10" />
               <div className="text-center">
-                <div className="text-3xl font-bold text-[#10B981]">100%</div>
-                <div className="text-[10px] text-slate-500 uppercase font-bold tracking-widest">Auditable</div>
+                <div className="text-4xl font-bold text-[#10B981] drop-shadow-[0_0_15px_rgba(16,185,129,0.4)]">100%</div>
+                <div className="text-[10px] text-slate-500 uppercase font-bold tracking-widest mt-1">Auditable</div>
               </div>
             </div>
             <div className="flex flex-col sm:flex-row items-center gap-6">
               <motion.a 
                 href="#waitlist" 
                 whileHover={{ 
-                  scale: 1.05,
-                  boxShadow: "0 0 30px rgba(181, 148, 16, 0.4)",
+                  scale: 1.02,
+                  boxShadow: "0 0 40px rgba(181, 148, 16, 0.3)",
                 }}
                 whileTap={{ scale: 0.98 }}
-                className="w-full sm:w-auto px-10 py-5 bg-white text-[#0A192F] hover:bg-slate-50 font-bold rounded-2xl transition-all duration-300 flex items-center justify-center gap-2 text-lg shadow-2xl relative overflow-hidden group"
+                className="w-full sm:w-auto px-10 py-5 bg-gradient-to-r from-white to-slate-200 text-[#0A192F] font-bold rounded-2xl transition-all duration-300 flex items-center justify-center gap-2 text-lg shadow-2xl relative overflow-hidden group"
               >
                 <div className="absolute inset-0 bg-gradient-to-r from-transparent via-gold/20 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-1000" />
                 <span className="relative z-10 flex items-center gap-2">
@@ -1006,8 +1205,58 @@ export default function App() {
 
           {/* High Quality 3D Hero Visual */}
           <div className="relative h-[600px] w-full flex items-center justify-center">
-            <div className="absolute inset-0 z-0">
-              <Hero3DScene />
+            {/* Immersive HUD Overlay */}
+            <div className="absolute inset-0 z-20 pointer-events-none">
+              <div className="absolute top-0 left-0 w-full h-full border border-white/5 rounded-3xl overflow-hidden">
+                <motion.div 
+                  animate={{ opacity: [0.1, 0.3, 0.1] }}
+                  transition={{ duration: 4, repeat: Infinity }}
+                  className="absolute inset-0 bg-[linear-gradient(45deg,transparent_25%,rgba(255,255,255,0.05)_50%,transparent_75%)] bg-[length:250%_250%]"
+                />
+              </div>
+              
+              {/* Floating HUD Elements */}
+              <motion.div 
+                animate={{ y: [0, -10, 0] }}
+                transition={{ duration: 4, repeat: Infinity }}
+                className="absolute top-12 right-12 bg-black/60 backdrop-blur-xl border border-white/10 p-4 rounded-2xl"
+              >
+                <div className="text-[8px] font-bold text-gold uppercase tracking-widest mb-1">Status del Ecosistema</div>
+                <div className="flex items-center gap-3">
+                  <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+                  <span className="text-xs font-mono text-white">Sincronizado</span>
+                </div>
+              </motion.div>
+
+              <motion.div 
+                animate={{ y: [0, 10, 0] }}
+                transition={{ duration: 5, repeat: Infinity }}
+                className="absolute bottom-12 left-12 bg-black/60 backdrop-blur-xl border border-white/10 p-4 rounded-2xl"
+              >
+                <div className="text-[8px] font-bold text-blue-400 uppercase tracking-widest mb-1">Carga de Datos RWA</div>
+                <div className="w-32 h-1 bg-white/10 rounded-full overflow-hidden">
+                  <motion.div 
+                    animate={{ width: ['0%', '100%'] }}
+                    transition={{ duration: 10, repeat: Infinity, ease: "linear" }}
+                    className="h-full bg-blue-500"
+                  />
+                </div>
+              </motion.div>
+            </div>
+
+            <div className="w-full h-full rounded-3xl overflow-hidden border border-white/5 shadow-2xl relative">
+              <div className="absolute inset-0 bg-gradient-to-t from-black via-transparent to-transparent z-10" />
+              <div className="w-full h-full bg-blue-500/5 backdrop-blur-3xl flex items-center justify-center">
+                 <div className="text-center p-8">
+                  <div className="w-16 h-16 bg-gold/10 rounded-full flex items-center justify-center mx-auto mb-4 border border-gold/20">
+                    <Zap className="w-8 h-8 text-gold animate-pulse" />
+                  </div>
+                  <h3 className="text-lg font-bold text-white mb-2 uppercase tracking-widest">Motor Cuántico Activo</h3>
+                  <p className="text-sm text-slate-500 max-w-xs mx-auto font-mono">
+                    Sincronizando dimensiones del ecosistema en tiempo real.
+                  </p>
+                </div>
+              </div>
             </div>
             
             {/* Floating Data Labels Overlay */}
@@ -1041,27 +1290,27 @@ export default function App() {
       </section>
 
       {/* Trust Belt */}
-      <section className="bg-white py-12 border-y border-slate-100">
+      <section className="bg-black/80 backdrop-blur-xl py-12 border-y border-white/5 relative z-10">
         <div className="max-w-7xl mx-auto px-6">
-          <div className="flex flex-wrap justify-center items-center gap-12 lg:gap-24 opacity-40 grayscale">
-            <span className="text-xl font-black tracking-tighter">POLYGON</span>
-            <span className="text-xl font-black tracking-tighter">STRIPE</span>
-            <span className="text-xl font-black tracking-tighter">MERCURY BANK</span>
-            <span className="text-xl font-black tracking-tighter">GOOGLE CLOUD AI</span>
-            <span className="text-xl font-black tracking-tighter">FIDEICOMISO SBS PERÚ</span>
+          <div className="flex flex-wrap justify-center items-center gap-12 lg:gap-24 opacity-50 grayscale hover:grayscale-0 transition-all duration-700">
+            <span className="text-xl font-black tracking-tighter text-white drop-shadow-[0_0_10px_rgba(255,255,255,0.2)]">POLYGON</span>
+            <span className="text-xl font-black tracking-tighter text-white drop-shadow-[0_0_10px_rgba(255,255,255,0.2)]">STRIPE</span>
+            <span className="text-xl font-black tracking-tighter text-white drop-shadow-[0_0_10px_rgba(255,255,255,0.2)]">MERCURY BANK</span>
+            <span className="text-xl font-black tracking-tighter text-white drop-shadow-[0_0_10px_rgba(255,255,255,0.2)]">GOOGLE CLOUD AI</span>
+            <span className="text-xl font-black tracking-tighter text-white drop-shadow-[0_0_10px_rgba(255,255,255,0.2)]">FIDEICOMISO SBS PERÚ</span>
           </div>
         </div>
       </section>
 
       {/* Aetheris Governance: El Estándar Institucional */}
-      <section id="governance" className="py-32 bg-[#0A192F] text-white overflow-hidden relative">
-        <div className="absolute top-0 right-0 w-[600px] h-[600px] bg-blue-500/10 blur-[120px] rounded-full -translate-y-1/2 translate-x-1/2" />
+      <section id="governance" className="py-32 bg-transparent text-white overflow-hidden relative z-10">
+        <div className="absolute top-0 right-0 w-[600px] h-[600px] bg-blue-500/10 blur-[120px] rounded-full -translate-y-1/2 translate-x-1/2 pointer-events-none" />
         <div className="max-w-7xl mx-auto px-6 relative z-10">
           <div className="grid lg:grid-cols-2 gap-20 items-center">
             <motion.div
-              initial={{ opacity: 0, x: -30 }}
+              initial={{ opacity: 0, x: -50 }}
               whileInView={{ opacity: 1, x: 0 }}
-              viewport={{ once: true }}
+              viewport={{ once: true, margin: "-100px" }}
               transition={{ duration: 0.8 }}
             >
               <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-white/5 border border-white/10 text-blue-400 text-xs font-bold uppercase tracking-widest mb-8">
@@ -1168,7 +1417,7 @@ export default function App() {
       </section>
 
       {/* Ecosystem Dimensions Feed */}
-      <div className="bg-white">
+      <div className="bg-transparent relative z-10">
         {[
           {
             id: 'terra',
@@ -1179,8 +1428,15 @@ export default function App() {
             how: 'Convertimos m² físicos en activos digitales (ERC-3643). Compras fracciones, el valor escala por desarrollo de infraestructura y liquidas en el mercado secundario.',
             icon: Map,
             color: 'text-[#B59410]',
-            bg: 'bg-amber-50',
-            url: 'https://pachanova.store'
+            colorCode: '#B59410',
+            bg: 'bg-amber-500/10',
+            url: 'https://pachanova.store',
+            neuroTitle: 'Anclaje Fiduciario',
+            neuroCopy: 'La tierra no se deprecia, muta en valor. Fraccionamiento matemático que democratiza el acceso al activo más antiguo de la humanidad.',
+            metrics: [
+              { label: 'Certeza Jurídica', value: '100% (Fideicomiso)' },
+              { label: 'TIR Proyectada', value: '25% - 40%' }
+            ]
           },
           {
             id: 'build',
@@ -1190,9 +1446,16 @@ export default function App() {
             what: 'Crowdfunding de activos inmobiliarios verticales (Edificios/Hoteles) con rentabilidad inmediata.',
             how: 'Inyectas capital en la fase de preventa. El Smart Contract distribuye rentas de alquiler o utilidades de venta automáticamente a tu wallet.',
             icon: Building,
-            color: 'text-blue-600',
-            bg: 'bg-blue-50',
-            url: 'https://build.aetheris.os'
+            color: 'text-blue-400',
+            colorCode: '#60a5fa',
+            bg: 'bg-blue-500/10',
+            url: 'https://build.aetheris.os',
+            neuroTitle: 'Estructuras de Riqueza',
+            neuroCopy: 'Ladrillos físicos respaldados por bloques criptográficos. Plusvalía vertical que puedes tocar y verificar on-chain.',
+            metrics: [
+              { label: 'Distribución', value: 'Smart Contract' },
+              { label: 'Rendimiento', value: 'Renta Fija + Upside' }
+            ]
           },
           {
             id: 'agritech',
@@ -1202,9 +1465,16 @@ export default function App() {
             what: 'Inversión en cultivos de alta demanda (Superfoods) con trazabilidad total mediante IoT.',
             how: 'Eres dueño de una parcela digital vinculada a una física. Sensores reportan salud del cultivo; la cosecha se vende y recibes dividendos on-chain.',
             icon: Leaf,
-            color: 'text-emerald-600',
-            bg: 'bg-emerald-50',
-            url: 'https://agritech.aetheris.os'
+            color: 'text-emerald-400',
+            colorCode: '#34d399',
+            bg: 'bg-emerald-500/10',
+            url: 'https://agritech.aetheris.os',
+            neuroTitle: 'Vitalidad Cuantificada',
+            neuroCopy: 'Cada gota de agua, cada fotón, auditado. La naturaleza rindiendo dividendos algorítmicos protegidos por oráculos IoT.',
+            metrics: [
+              { label: 'Telemetría', value: 'IoT Activo' },
+              { label: 'Riesgo Climático', value: 'Mitigado (Seguro)' }
+            ]
           },
           {
             id: 'bios',
@@ -1214,9 +1484,16 @@ export default function App() {
             what: 'Activos regenerativos y créditos de carbono para la economía Net Zero.',
             how: 'Protegemos hectáreas de bosque. La captura de CO2 genera créditos tokenizados que vendemos a corporaciones. Tú recibes el yield ambiental.',
             icon: TreePine,
-            color: 'text-teal-600',
-            bg: 'bg-teal-50',
-            url: 'https://bios.aetheris.os'
+            color: 'text-teal-400',
+            colorCode: '#2dd4bf',
+            bg: 'bg-teal-500/10',
+            url: 'https://bios.aetheris.os',
+            neuroTitle: 'Respiración Algorítmica',
+            neuroCopy: 'Monetiza la conservación. Convierte la captura de carbono en un flujo de caja verificable para la economía Net Zero.',
+            metrics: [
+              { label: 'Auditoría', value: 'IA Satelital' },
+              { label: 'Demanda', value: 'Corporativa (ESG)' }
+            ]
           },
           {
             id: 'credit',
@@ -1226,9 +1503,16 @@ export default function App() {
             what: 'Deuda privada para PyMEs productivas auditada por Inteligencia Artificial.',
             how: 'Tu capital fondea préstamos a empresas con flujo de caja real. La IA de Aetheris califica el riesgo y asegura el repago mensual automatizado.',
             icon: Briefcase,
-            color: 'text-indigo-600',
-            bg: 'bg-indigo-50',
-            url: 'https://credit.aetheris.os'
+            color: 'text-indigo-400',
+            colorCode: '#818cf8',
+            bg: 'bg-indigo-500/10',
+            url: 'https://credit.aetheris.os',
+            neuroTitle: 'Liquidez Inyectada',
+            neuroCopy: 'Financiamiento paramétrico. IA evalúa flujos de caja en tiempo real para ofrecer renta fija que aplasta la inflación.',
+            metrics: [
+              { label: 'Scoring', value: 'IA Predictiva' },
+              { label: 'Colateral', value: 'Flujos Futuros' }
+            ]
           },
           {
             id: 'seed',
@@ -1238,9 +1522,16 @@ export default function App() {
             what: 'Venture Capital descentralizado para startups tecnológicas de alto impacto.',
             how: 'Inviertes en rondas semilla. El capital se libera por hitos operativos (Milestones) verificados por agentes de IA, protegiendo tu capital.',
             icon: Rocket,
-            color: 'text-rose-600',
-            bg: 'bg-rose-50',
-            url: 'https://seed.aetheris.os'
+            color: 'text-rose-400',
+            colorCode: '#fb7185',
+            bg: 'bg-rose-500/10',
+            url: 'https://seed.aetheris.os',
+            neuroTitle: 'Génesis de Valor',
+            neuroCopy: 'Capital inyectado en la capa base de la innovación. Riesgo asimétrico con potencial de retorno exponencial, protegido por hitos.',
+            metrics: [
+              { label: 'Liberación', value: 'Por Hitos (Milestones)' },
+              { label: 'Potencial', value: 'Exponencial (10x+)' }
+            ]
           },
           {
             id: 'markets',
@@ -1250,18 +1541,25 @@ export default function App() {
             what: 'El motor de liquidez 24/7 para todos los activos del ecosistema Aetheris.',
             how: 'Un exchange secundario P2P donde intercambias tus tokens por stablecoins en segundos. Sin notarios, sin esperas, con ejecución algorítmica.',
             icon: Landmark,
-            color: 'text-blue-700',
-            bg: 'bg-blue-50',
-            url: 'https://markets.aetheris.os'
+            color: 'text-blue-500',
+            colorCode: '#3b82f6',
+            bg: 'bg-blue-500/10',
+            url: 'https://markets.aetheris.os',
+            neuroTitle: 'Liquidez Absoluta',
+            neuroCopy: 'El fin de la iliquidez. Intercambia activos del mundo real a la velocidad de la luz. Sin notarios, sin fricción.',
+            metrics: [
+              { label: 'Disponibilidad', value: '24/7/365' },
+              { label: 'Liquidación', value: 'Instantánea (P2P)' }
+            ]
           }
         ].map((section, idx) => (
           <section
             key={section.id}
             id={section.id}
-            className={`py-32 border-b border-slate-100 scroll-mt-24 ${idx % 2 === 0 ? 'bg-white' : 'bg-slate-50/50'}`}
+            className={`py-32 border-b border-white/5 scroll-mt-24 ${idx % 2 === 0 ? 'bg-black/40 backdrop-blur-sm' : 'bg-transparent'}`}
           >
             <div className="max-w-7xl mx-auto px-6">
-              <div className="grid lg:grid-cols-2 gap-16 items-start">
+              <div className="grid lg:grid-cols-2 gap-16 items-center">
                 <motion.div
                   initial={{ opacity: 0, x: -30 }}
                   whileInView={{ opacity: 1, x: 0 }}
@@ -1273,47 +1571,47 @@ export default function App() {
                     whileInView={{ opacity: 1, scale: 1 }}
                     viewport={{ once: true }}
                     transition={{ duration: 0.5, delay: 0.2 }}
-                    className={`w-16 h-16 rounded-2xl ${section.bg} flex items-center justify-center mb-8 shadow-sm`}
+                    className={`w-16 h-16 rounded-2xl ${section.bg} border border-white/10 flex items-center justify-center mb-8 shadow-sm`}
                   >
                     <section.icon className={`w-8 h-8 ${section.color}`} strokeWidth={1.5} />
                   </motion.div>
-                  <h2 className="text-5xl font-bold text-[#0A192F] mb-4 tracking-tighter uppercase">
+                  <h2 className="text-5xl font-bold text-white mb-4 tracking-tighter uppercase drop-shadow-lg">
                     {section.title}
                   </h2>
-                  <h3 className={`text-sm font-bold ${section.color} mb-8 uppercase tracking-[0.3em]`}>
+                  <h3 className={`text-sm font-bold ${section.color} mb-8 uppercase tracking-[0.3em] drop-shadow-sm`}>
                     {section.tagline}
                   </h3>
-                  <p className="text-xl text-[#64748B] leading-relaxed mb-10 font-medium">
+                  <p className="text-xl text-slate-400 leading-relaxed mb-10 font-medium">
                     {section.desc}
                   </p>
                   
                   {/* Modern Product Details Grid */}
                   <div className="grid sm:grid-cols-2 gap-6 mb-12">
                     <motion.div 
-                      whileHover={{ y: -5, borderColor: 'rgba(59,130,246,0.3)' }}
-                      className="p-8 bg-white rounded-[2.5rem] border border-slate-100 shadow-[0_10px_30px_-15px_rgba(0,0,0,0.05)] transition-all group"
+                      whileHover={{ y: -5, borderColor: section.colorCode }}
+                      className="p-8 bg-white/5 backdrop-blur-md rounded-[2.5rem] border border-white/10 shadow-[0_10px_30px_-15px_rgba(0,0,0,0.5)] transition-all group"
                     >
                       <div className="flex items-center gap-3 mb-6">
-                        <div className={`w-10 h-10 rounded-2xl ${section.bg} flex items-center justify-center group-hover:scale-110 transition-transform`}>
+                        <div className={`w-10 h-10 rounded-2xl ${section.bg} border border-white/10 flex items-center justify-center group-hover:scale-110 transition-transform`}>
                           <HelpCircle className={`w-5 h-5 ${section.color}`} />
                         </div>
                         <h4 className="text-xs font-bold text-slate-400 uppercase tracking-[0.2em]">Qué es</h4>
                       </div>
-                      <p className="text-base text-slate-600 leading-relaxed font-medium">
+                      <p className="text-sm text-slate-300 leading-relaxed font-medium">
                         {section.what}
                       </p>
                     </motion.div>
                     <motion.div 
-                      whileHover={{ y: -5, borderColor: 'rgba(59,130,246,0.3)' }}
-                      className="p-8 bg-white rounded-[2.5rem] border border-slate-100 shadow-[0_10px_30px_-15px_rgba(0,0,0,0.05)] transition-all group"
+                      whileHover={{ y: -5, borderColor: section.colorCode }}
+                      className="p-8 bg-white/5 backdrop-blur-md rounded-[2.5rem] border border-white/10 shadow-[0_10px_30px_-15px_rgba(0,0,0,0.5)] transition-all group"
                     >
                       <div className="flex items-center gap-3 mb-6">
-                        <div className={`w-10 h-10 rounded-2xl ${section.bg} flex items-center justify-center group-hover:scale-110 transition-transform`}>
+                        <div className={`w-10 h-10 rounded-2xl ${section.bg} border border-white/10 flex items-center justify-center group-hover:scale-110 transition-transform`}>
                           <Settings2 className={`w-5 h-5 ${section.color}`} />
                         </div>
                         <h4 className="text-xs font-bold text-slate-400 uppercase tracking-[0.2em]">Cómo funciona</h4>
                       </div>
-                      <p className="text-base text-slate-600 leading-relaxed font-medium">
+                      <p className="text-sm text-slate-300 leading-relaxed font-medium">
                         {section.how}
                       </p>
                     </motion.div>
@@ -1322,71 +1620,25 @@ export default function App() {
                   <div className="flex flex-wrap gap-4">
                     <button 
                       onClick={() => window.open(section.url, '_blank')}
-                      style={{ backgroundColor: section.color.includes('[') ? section.color.match(/\[(.*?)\]/)?.[1] : undefined }}
-                      className={`px-10 py-4 rounded-2xl ${!section.color.includes('[') ? section.color.replace('text-', 'bg-') : ''} text-white font-bold text-sm uppercase tracking-widest hover:brightness-110 transition-all shadow-xl hover:-translate-y-1`}
+                      style={{ 
+                        backgroundColor: section.colorCode,
+                        boxShadow: `0 0 20px ${section.colorCode}40`
+                      }}
+                      className="px-10 py-4 rounded-2xl text-[#0A192F] font-bold text-sm uppercase tracking-widest hover:brightness-110 transition-all hover:-translate-y-1"
                     >
                       Acceder a la Plataforma
                     </button>
                     <button 
                       onClick={() => document.getElementById('simulator')?.scrollIntoView({ behavior: 'smooth' })}
-                      className="px-10 py-4 rounded-2xl border-2 border-slate-200 text-slate-700 font-bold text-sm uppercase tracking-widest hover:bg-slate-50 transition-all"
+                      className="px-10 py-4 rounded-2xl border border-white/20 bg-white/5 text-white font-bold text-sm uppercase tracking-widest hover:bg-white/10 transition-all"
                     >
                       Simular Retorno
                     </button>
                   </div>
                 </motion.div>
                 
-                <div className="relative sticky top-32">
-                  <div className={`absolute inset-0 ${section.bg} blur-3xl opacity-30 rounded-full`} />
-                  <div className="relative aspect-square bg-slate-900 rounded-[3rem] border border-slate-800 shadow-2xl overflow-hidden flex items-center justify-center group">
-                    <motion.div
-                      initial={{ opacity: 0, scale: 0.8, rotate: -10 }}
-                      whileInView={{ opacity: 1, scale: 1, rotate: 0 }}
-                      viewport={{ once: true }}
-                      transition={{ duration: 1, delay: 0.4, type: "spring" }}
-                      className="relative z-10"
-                    >
-                      <ProductVisual id={section.id} color={section.color} Icon={section.icon} />
-                    </motion.div>
-                    
-                    {/* Abstract Data Overlay */}
-                    <div className="absolute inset-0 flex flex-col justify-end p-10 bg-gradient-to-t from-slate-900 via-slate-900/40 to-transparent">
-                      <div className="flex items-center justify-between mb-6">
-                        <div className="flex items-center gap-3">
-                          <div className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse shadow-[0_0_10px_rgba(16,185,129,0.8)]" />
-                          <span className="text-[10px] font-bold text-emerald-400 uppercase tracking-[0.2em]">Smart Contract Activo</span>
-                        </div>
-                        {section.id === 'markets' && (
-                          <div className="px-3 py-1 bg-blue-500/20 border border-blue-500/30 rounded-full">
-                            <span className="text-[8px] font-bold text-blue-400 uppercase tracking-widest">Liquidez 24/7</span>
-                          </div>
-                        )}
-                      </div>
-                      <div className="h-1.5 w-full bg-slate-800 rounded-full overflow-hidden mb-3">
-                        <motion.div 
-                          initial={{ width: 0 }}
-                          whileInView={{ width: '100%' }}
-                          transition={{ duration: 2, delay: 0.5 }}
-                          className={`h-full ${section.color.replace('text-', 'bg-')} shadow-[0_0_15px_rgba(59,130,246,0.5)]`}
-                        />
-                      </div>
-                      <div className="flex justify-between items-center">
-                        <p className="text-[10px] font-mono text-slate-500 uppercase tracking-tighter">
-                          Hash: 0x{Math.random().toString(16).slice(2, 10)}...{Math.random().toString(16).slice(2, 6)}
-                        </p>
-                        <div className="flex gap-1">
-                          {[...Array(3)].map((_, i) => (
-                            <motion.div 
-                              key={i}
-                              animate={{ opacity: [0.2, 1, 0.2] }}
-                              transition={{ duration: 1, repeat: Infinity, delay: i * 0.2 }}
-                              className="w-1 h-1 bg-emerald-500 rounded-full"
-                            />
-                          ))}
-                        </div>
-                      </div>
-                    </div>
-                  </div>
+                <div className="relative lg:ml-auto w-full max-w-md">
+                  <HolographicAssetCard section={section} />
                 </div>
               </div>
             </div>
@@ -1395,8 +1647,9 @@ export default function App() {
       </div>
 
       {/* Immutable Transparency Dashboard (Proof of Reserve & IoT) */}
-      <section id="transparency" className="py-32 bg-white overflow-hidden">
-        <div className="max-w-7xl mx-auto px-6">
+      <section id="transparency" className="py-32 bg-black/60 backdrop-blur-md overflow-hidden relative z-10">
+        <div className="absolute inset-0 bg-gradient-to-b from-transparent via-white/5 to-transparent pointer-events-none" />
+        <div className="max-w-7xl mx-auto px-6 relative z-10">
           <div className="grid lg:grid-cols-2 gap-20 items-center">
             <motion.div
               initial={{ opacity: 0, x: -30 }}
@@ -1404,13 +1657,13 @@ export default function App() {
               viewport={{ once: true }}
               transition={{ duration: 0.8 }}
             >
-              <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-emerald-50 border border-emerald-100 text-emerald-600 text-xs font-bold uppercase tracking-widest mb-8">
+              <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-xs font-bold uppercase tracking-widest mb-8 shadow-[inset_0_1px_0_rgba(16,185,129,0.2)]">
                 <Activity className="w-4 h-4" /> Transparencia Inmutable en Tiempo Real
               </div>
-              <h2 className="text-5xl font-bold text-[#0A192F] mb-8 tracking-tighter leading-[1.1] uppercase">
-                La Verdad Auditada por <span className="text-emerald-600">Matemática y Silicio</span>
+              <h2 className="text-5xl font-bold text-white mb-8 tracking-tighter leading-[1.1] uppercase drop-shadow-lg">
+                La Verdad Auditada por <span className="text-transparent bg-clip-text bg-gradient-to-r from-emerald-400 to-teal-200">Matemática y Silicio</span>
               </h2>
-              <p className="text-xl text-[#64748B] leading-relaxed mb-10 font-medium">
+              <p className="text-xl text-slate-400 leading-relaxed mb-10 font-medium">
                 Eliminamos la asimetría de información. Aetheris OS conecta los activos del mundo real con la blockchain mediante oráculos IoT, permitiendo una auditoría pública y permanente de cada m², cada cultivo y cada dólar.
               </p>
 
@@ -1420,13 +1673,13 @@ export default function App() {
                   { title: 'Telemetría IoT Directa', desc: 'Sensores en terreno reportan humedad, seguridad y progreso de obra sin intermediarios humanos.', icon: Cpu },
                   { title: 'Auditoría Legal Algorítmica', desc: 'Smart Contracts que solo liberan fondos si los hitos legales son validados por nuestra IA.', icon: Lock }
                 ].map((item, i) => (
-                  <div key={i} className="flex gap-6 p-6 rounded-3xl border border-slate-100 hover:border-emerald-200 hover:bg-emerald-50/30 transition-all group">
-                    <div className="w-12 h-12 shrink-0 rounded-2xl bg-slate-50 flex items-center justify-center group-hover:bg-emerald-100 transition-colors">
-                      <item.icon className="w-6 h-6 text-slate-400 group-hover:text-emerald-600" />
+                  <div key={i} className="flex gap-6 p-6 rounded-3xl border border-white/10 bg-white/5 hover:bg-white/10 hover:border-emerald-500/30 transition-all group backdrop-blur-sm">
+                    <div className="w-12 h-12 shrink-0 rounded-2xl bg-black/50 border border-white/5 flex items-center justify-center group-hover:bg-emerald-500/20 group-hover:border-emerald-500/50 transition-colors">
+                      <item.icon className="w-6 h-6 text-slate-400 group-hover:text-emerald-400" />
                     </div>
                     <div>
-                      <h4 className="text-lg font-bold text-[#0A192F] mb-1">{item.title}</h4>
-                      <p className="text-slate-500 leading-relaxed">{item.desc}</p>
+                      <h4 className="text-lg font-bold text-white mb-1 drop-shadow-sm">{item.title}</h4>
+                      <p className="text-slate-400 leading-relaxed">{item.desc}</p>
                     </div>
                   </div>
                 ))}
@@ -1434,8 +1687,8 @@ export default function App() {
             </motion.div>
 
             <div className="relative">
-              <div className="absolute inset-0 bg-emerald-500/5 blur-[120px] rounded-full" />
-              <div className="relative bg-[#0A192F] rounded-[3rem] border border-slate-800 shadow-2xl overflow-hidden p-8 md:p-12">
+              <div className="absolute inset-0 bg-emerald-500/10 blur-[120px] rounded-full" />
+              <div className="relative bg-[#050505]/80 backdrop-blur-2xl rounded-[3rem] border border-white/10 shadow-[0_0_50px_rgba(16,185,129,0.1)] overflow-hidden p-8 md:p-12">
                 {/* Dashboard UI Mockup */}
                 <div className="flex items-center justify-between mb-10">
                   <div>
@@ -1498,60 +1751,61 @@ export default function App() {
       </section>
 
       {/* Double Shield (Wealth Protection) */}
-      <section id="shield" className="py-32 bg-slate-50 border-y border-slate-200/50">
-        <div className="max-w-5xl mx-auto px-6">
+      <section id="shield" className="py-32 bg-black/60 backdrop-blur-md border-y border-white/5 relative z-10">
+        <div className="absolute inset-0 bg-gradient-to-b from-transparent via-blue-900/5 to-transparent pointer-events-none" />
+        <div className="max-w-5xl mx-auto px-6 relative z-10">
           <div className="text-center mb-20">
-            <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-blue-50 border border-blue-100 text-blue-600 text-xs font-bold uppercase tracking-widest mb-6">
+            <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-blue-500/10 border border-blue-500/20 text-blue-400 text-xs font-bold uppercase tracking-widest mb-6 shadow-[inset_0_1px_0_rgba(59,130,246,0.2)]">
               <Shield className="w-4 h-4" /> Seguridad de Grado Institucional
             </div>
-            <h2 className="text-5xl md:text-6xl font-bold text-[#0A192F] tracking-tighter mb-6 uppercase">
+            <h2 className="text-5xl md:text-6xl font-bold text-white tracking-tighter mb-6 uppercase drop-shadow-lg">
               Tu Riqueza, Intocable
             </h2>
-            <p className="text-xl text-[#64748B] max-w-2xl mx-auto leading-relaxed font-medium">
+            <p className="text-xl text-slate-400 max-w-2xl mx-auto leading-relaxed font-medium">
               La Arquitectura de Doble Escudo de Aetheris OS combina jurisdicciones de élite con auditoría de IA en tiempo real.
             </p>
           </div>
 
           <div className="grid md:grid-cols-2 gap-8 mb-16">
             {/* Global Layer */}
-            <div className="bg-white p-12 rounded-[3rem] border border-slate-200/60 shadow-xl relative overflow-hidden group">
+            <div className="bg-white/5 backdrop-blur-xl p-12 rounded-[3rem] border border-white/10 shadow-[0_0_30px_rgba(0,0,0,0.5)] relative overflow-hidden group hover:bg-white/10 transition-all duration-500">
               <div className="absolute top-0 right-0 p-8 opacity-5 group-hover:scale-110 transition-transform duration-700">
-                <Globe className="w-40 h-40" />
+                <Globe className="w-40 h-40 text-white" />
               </div>
-              <div className="w-14 h-14 bg-blue-50 rounded-2xl flex items-center justify-center mb-8">
-                <Globe className="w-7 h-7 text-blue-600" />
+              <div className="w-14 h-14 bg-blue-500/20 rounded-2xl flex items-center justify-center mb-8 border border-blue-500/30">
+                <Globe className="w-7 h-7 text-blue-400" />
               </div>
-              <h3 className="text-3xl font-bold text-[#0A192F] mb-4">Capa Global: LLC en Wyoming</h3>
-              <p className="text-[#64748B] text-lg leading-relaxed">
+              <h3 className="text-3xl font-bold text-white mb-4 drop-shadow-sm">Capa Global: LLC en Wyoming</h3>
+              <p className="text-slate-400 text-lg leading-relaxed">
                 0% tributación federal y privacidad absoluta. Tu holding internacional bajo leyes de protección de activos de clase mundial.
               </p>
             </div>
 
             {/* Local Layer */}
-            <div className="bg-white p-12 rounded-[3rem] border border-slate-200/60 shadow-xl relative overflow-hidden group">
+            <div className="bg-white/5 backdrop-blur-xl p-12 rounded-[3rem] border border-white/10 shadow-[0_0_30px_rgba(0,0,0,0.5)] relative overflow-hidden group hover:bg-white/10 transition-all duration-500">
               <div className="absolute top-0 right-0 p-8 opacity-5 group-hover:scale-110 transition-transform duration-700">
-                <Shield className="w-40 h-40" />
+                <Shield className="w-40 h-40 text-white" />
               </div>
-              <div className="w-14 h-14 bg-emerald-50 rounded-2xl flex items-center justify-center mb-8">
-                <Shield className="w-7 h-7 text-emerald-600" />
+              <div className="w-14 h-14 bg-emerald-500/20 rounded-2xl flex items-center justify-center mb-8 border border-emerald-500/30">
+                <Shield className="w-7 h-7 text-emerald-400" />
               </div>
-              <h3 className="text-3xl font-bold text-[#0A192F] mb-4">Capa Local: Fideicomiso SBS Perú</h3>
-              <p className="text-[#64748B] text-lg leading-relaxed">
+              <h3 className="text-3xl font-bold text-white mb-4 drop-shadow-sm">Capa Local: Fideicomiso SBS Perú</h3>
+              <p className="text-slate-400 text-lg leading-relaxed">
                 Activo físico inembargable. La tierra está blindada jurídicamente, separada de cualquier riesgo operativo o legal externo.
               </p>
             </div>
           </div>
 
-          <div className="bg-[#0A192F] rounded-[3rem] p-12 text-white relative overflow-hidden">
-            <div className="absolute top-0 right-0 w-96 h-96 bg-blue-500/10 rounded-full blur-[100px] -translate-y-1/2 translate-x-1/2" />
+          <div className="bg-gradient-to-br from-[#0A192F] to-blue-900 rounded-[3rem] p-12 text-white relative overflow-hidden border border-white/10 shadow-[0_0_50px_rgba(10,25,47,0.8)]">
+            <div className="absolute top-0 right-0 w-96 h-96 bg-blue-500/20 rounded-full blur-[100px] -translate-y-1/2 translate-x-1/2 pointer-events-none" />
             <div className="relative z-10 flex flex-col md:flex-row items-center gap-12">
-              <div className="w-24 h-24 shrink-0 bg-white/10 rounded-3xl flex items-center justify-center border border-white/20">
-                <Cpu className="w-12 h-12 text-gold" />
+              <div className="w-24 h-24 shrink-0 bg-black/40 rounded-3xl flex items-center justify-center border border-white/20 shadow-[inset_0_1px_0_rgba(255,255,255,0.2)]">
+                <Cpu className="w-12 h-12 text-gold animate-pulse" />
               </div>
               <div>
-                <h4 className="text-2xl font-bold mb-4">Oráculo de Inversión Agéntico</h4>
-                <p className="text-blue-100 text-lg leading-relaxed">
-                  Impulsado por <span className="text-gold font-bold">Gemini 2.0 Flash</span>, nuestro Oráculo actúa como un exocórtex financiero que analiza ciclos históricos de plusvalía y auditorías de cumplimiento en tiempo real. No solo procesa datos, proyecta legados.
+                <h4 className="text-2xl font-bold mb-4 drop-shadow-md">Oráculo de Inversión Agéntico</h4>
+                <p className="text-blue-100/80 text-lg leading-relaxed">
+                  Impulsado por <span className="text-gold font-bold drop-shadow-[0_0_10px_rgba(181,148,16,0.5)]">Gemini 2.0 Flash</span>, nuestro Oráculo actúa como un exocórtex financiero que analiza ciclos históricos de plusvalía y auditorías de cumplimiento en tiempo real. No solo procesa datos, proyecta legados.
                 </p>
               </div>
             </div>
@@ -1560,37 +1814,37 @@ export default function App() {
       </section>
 
       {/* Simulator */}
-      <section id="simulator" className="py-24 bg-white border-t border-slate-200">
-        <div className="max-w-7xl mx-auto px-6">
+      <section id="simulator" className="py-24 bg-black/60 backdrop-blur-md border-t border-white/5 relative z-10">
+        <div className="max-w-7xl mx-auto px-6 relative z-10">
           <div className="text-center mb-16">
-            <h2 className="text-3xl lg:text-4xl font-bold mb-6 text-navy uppercase tracking-tighter">Proyecta la Magnitud de tu Legado</h2>
-            <p className="text-slate-600 text-lg max-w-2xl mx-auto font-medium">
+            <h2 className="text-3xl lg:text-4xl font-bold mb-6 text-white uppercase tracking-tighter drop-shadow-lg">Proyecta la Magnitud de tu Legado</h2>
+            <p className="text-slate-400 text-lg max-w-2xl mx-auto font-medium">
               Desliza el control para simular el impacto de tu inversión. Observa exactamente cómo la curva de plusvalía acelera tu riqueza hacia el valor operativo proyectado.
             </p>
           </div>
 
           <div className="grid lg:grid-cols-3 gap-8">
-            <div className="lg:col-span-1 p-8 border border-slate-200 bg-white rounded-2xl shadow-sm flex flex-col justify-center">
+            <div className="lg:col-span-1 p-8 border border-white/10 bg-white/5 backdrop-blur-xl rounded-[2.5rem] shadow-[0_0_30px_rgba(0,0,0,0.5)] flex flex-col justify-center">
               <div className="mb-8">
-                <label className="block text-xs font-bold text-slate-500 mb-3 uppercase tracking-widest">
+                <label className="block text-xs font-bold text-slate-400 mb-3 uppercase tracking-widest">
                   Tipo de Activo
                 </label>
-                <div className="flex bg-slate-100 p-1.5 rounded-xl">
+                <div className="flex bg-black/40 p-1.5 rounded-xl border border-white/5">
                   <button 
                     onClick={() => setSimulatorAsset('Terra')}
-                    className={`flex-1 py-2.5 text-xs font-bold uppercase tracking-widest rounded-lg transition-all ${simulatorAsset === 'Terra' ? 'bg-white text-navy shadow-md' : 'text-slate-500 hover:text-slate-700'}`}
+                    className={`flex-1 py-2.5 text-xs font-bold uppercase tracking-widest rounded-lg transition-all ${simulatorAsset === 'Terra' ? 'bg-white/10 text-gold shadow-md border border-white/10' : 'text-slate-500 hover:text-slate-300'}`}
                   >
                     Terra
                   </button>
                   <button 
                     onClick={() => setSimulatorAsset('Agri')}
-                    className={`flex-1 py-2.5 text-xs font-bold uppercase tracking-widest rounded-lg transition-all ${simulatorAsset === 'Agri' ? 'bg-white text-emerald shadow-md' : 'text-slate-500 hover:text-slate-700'}`}
+                    className={`flex-1 py-2.5 text-xs font-bold uppercase tracking-widest rounded-lg transition-all ${simulatorAsset === 'Agri' ? 'bg-white/10 text-emerald-400 shadow-md border border-white/10' : 'text-slate-500 hover:text-slate-300'}`}
                   >
                     Agri
                   </button>
                   <button 
                     onClick={() => setSimulatorAsset('Build')}
-                    className={`flex-1 py-2.5 text-xs font-bold uppercase tracking-widest rounded-lg transition-all ${simulatorAsset === 'Build' ? 'bg-white text-sky-500 shadow-md' : 'text-slate-500 hover:text-slate-700'}`}
+                    className={`flex-1 py-2.5 text-xs font-bold uppercase tracking-widest rounded-lg transition-all ${simulatorAsset === 'Build' ? 'bg-white/10 text-blue-400 shadow-md border border-white/10' : 'text-slate-500 hover:text-slate-300'}`}
                   >
                     Build
                   </button>
@@ -1598,7 +1852,7 @@ export default function App() {
               </div>
 
               <div className="flex items-center justify-between mb-4">
-                <label className="block text-xs font-bold text-slate-500 uppercase tracking-widest">
+                <label className="block text-xs font-bold text-slate-400 uppercase tracking-widest">
                   Monto de Inversión (USD)
                 </label>
                 <AnimatePresence>
@@ -1607,14 +1861,14 @@ export default function App() {
                       initial={{ opacity: 0, scale: 0.9 }}
                       animate={{ opacity: 1, scale: 1 }}
                       exit={{ opacity: 0, scale: 0.9 }}
-                      className="px-3 py-1 bg-[#10B981]/10 text-[#10B981] text-xs font-bold rounded-full border border-[#10B981]/20 flex items-center gap-1"
+                      className="px-3 py-1 bg-emerald-500/10 text-emerald-400 text-[10px] font-bold rounded-full border border-emerald-500/20 flex items-center gap-1 shadow-[inset_0_1px_0_rgba(16,185,129,0.2)]"
                     >
                       <Zap className="w-3 h-3" /> Descuento Genesis 100 Activado
                     </motion.div>
                   )}
                 </AnimatePresence>
               </div>
-              <div className="text-5xl font-medium text-navy mb-8 tracking-tight">
+              <div className="text-5xl font-medium text-white mb-8 tracking-tight drop-shadow-md">
                 ${investment.toLocaleString()}
               </div>
               <input 
@@ -1624,36 +1878,36 @@ export default function App() {
                 step="1000"
                 value={investment}
                 onChange={(e) => setInvestment(Number(e.target.value))}
-                className="w-full accent-gold mb-10 h-2 bg-slate-100 rounded-lg appearance-none cursor-pointer"
+                className="w-full accent-gold mb-10 h-2 bg-white/10 rounded-lg appearance-none cursor-pointer border border-white/5"
               />
               
-              <div className="space-y-5 pt-8 border-t border-slate-100">
+              <div className="space-y-5 pt-8 border-t border-white/10">
                 <div className="flex justify-between items-center">
-                  <span className="text-slate-600 font-medium">Tokens $PACHA</span>
-                  <span className="font-mono text-lg text-navy font-semibold">{tokens.toFixed(2)}</span>
+                  <span className="text-slate-400 font-medium">Tokens $PACHA</span>
+                  <span className="font-mono text-lg text-white font-semibold">{tokens.toFixed(2)}</span>
                 </div>
                 <div className="flex justify-between items-center">
-                  <span className="text-slate-600 font-medium">Costo por Token</span>
-                  <span className="font-mono text-lg text-navy font-semibold">${isGenesis ? '84' : '120'}</span>
+                  <span className="text-slate-400 font-medium">Costo por Token</span>
+                  <span className="font-mono text-lg text-white font-semibold">${isGenesis ? '84' : '120'}</span>
                 </div>
                 {isGenesis && (
-                  <div className="flex justify-between items-center bg-emerald/10 px-3 py-2 rounded-md border border-emerald/20">
-                    <span className="text-emerald font-semibold text-sm">Beneficio Genesis 100</span>
-                    <span className="text-emerald font-bold text-sm">-30% Costo</span>
+                  <div className="flex justify-between items-center bg-emerald-500/10 px-3 py-2 rounded-md border border-emerald-500/20">
+                    <span className="text-emerald-400 font-semibold text-sm">Beneficio Genesis 100</span>
+                    <span className="text-emerald-400 font-bold text-sm">-30% Costo</span>
                   </div>
                 )}
               </div>
             </div>
 
-            <div className="lg:col-span-2 p-8 border border-slate-200 bg-white rounded-2xl shadow-sm h-[450px] flex flex-col">
+            <div className="lg:col-span-2 p-8 border border-white/10 bg-white/5 backdrop-blur-xl rounded-[2.5rem] shadow-[0_0_30px_rgba(0,0,0,0.5)] h-[450px] flex flex-col">
               <div className="mb-8 flex justify-between items-end">
                 <div>
-                  <p className="text-xs font-bold text-slate-500 mb-2 uppercase tracking-widest">Valor Proyectado (2029)</p>
-                  <p className="text-4xl font-medium text-navy tracking-tight">${projectedValue.toLocaleString(undefined, { maximumFractionDigits: 0 })}</p>
+                  <p className="text-xs font-bold text-slate-400 mb-2 uppercase tracking-widest">Valor Proyectado (2029)</p>
+                  <p className="text-4xl font-medium text-white tracking-tight drop-shadow-md">${projectedValue.toLocaleString(undefined, { maximumFractionDigits: 0 })}</p>
                 </div>
-                <div className="text-right bg-surface px-4 py-2 rounded-lg border border-slate-100">
-                  <p className="text-xs font-bold text-slate-500 mb-1 uppercase tracking-widest">TIR Estimada</p>
-                  <p className="text-2xl font-bold" style={{ color }}>{tir}</p>
+                <div className="text-right bg-black/40 px-4 py-2 rounded-lg border border-white/10">
+                  <p className="text-xs font-bold text-slate-400 mb-1 uppercase tracking-widest">TIR Estimada</p>
+                  <p className="text-2xl font-bold drop-shadow-[0_0_10px_currentColor]" style={{ color }}>{tir}</p>
                 </div>
               </div>
               <div className="flex-1 w-full min-h-0">
@@ -1661,19 +1915,19 @@ export default function App() {
                   <AreaChart data={chartData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
                     <defs>
                       <linearGradient id="colorValue" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="5%" stopColor={color} stopOpacity={0.2}/>
+                        <stop offset="5%" stopColor={color} stopOpacity={0.4}/>
                         <stop offset="95%" stopColor={color} stopOpacity={0}/>
                       </linearGradient>
                     </defs>
-                    <XAxis dataKey="year" stroke="#94a3b8" tick={{fill: '#64748b', fontSize: 12, fontWeight: 500}} axisLine={false} tickLine={false} dy={10} />
-                    <YAxis stroke="#94a3b8" tick={{fill: '#64748b', fontSize: 12, fontWeight: 500}} axisLine={false} tickLine={false} tickFormatter={(val) => `$${val/1000}k`} />
+                    <XAxis dataKey="year" stroke="#64748b" tick={{fill: '#94a3b8', fontSize: 12, fontWeight: 500}} axisLine={false} tickLine={false} dy={10} />
+                    <YAxis stroke="#64748b" tick={{fill: '#94a3b8', fontSize: 12, fontWeight: 500}} axisLine={false} tickLine={false} tickFormatter={(val) => `$${val/1000}k`} />
                     <Tooltip 
                       content={({ active, payload, label }) => {
                         if (active && payload && payload.length) {
                           return (
-                            <div className="bg-white p-4 border border-slate-200 rounded-xl shadow-lg">
-                              <p className="text-slate-500 text-xs font-bold uppercase tracking-wider mb-1">{label}</p>
-                              <p className="text-navy font-bold text-xl mb-1">${payload[0].value.toLocaleString(undefined, {maximumFractionDigits: 0})}</p>
+                            <div className="bg-black/80 backdrop-blur-md p-4 border border-white/10 rounded-xl shadow-xl">
+                              <p className="text-slate-400 text-xs font-bold uppercase tracking-wider mb-1">{label}</p>
+                              <p className="text-white font-bold text-xl mb-1">${payload[0].value.toLocaleString(undefined, {maximumFractionDigits: 0})}</p>
                               <p className="text-sm font-medium flex items-center gap-1" style={{ color }}>
                                 <CheckCircle2 className="w-4 h-4" />
                                 {payload[0].payload.milestone}
@@ -1694,17 +1948,17 @@ export default function App() {
       </section>
 
       {/* VIP Waitlist Form */}
-      <section id="waitlist" className="py-32 bg-white relative overflow-hidden">
-        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[800px] h-[800px] bg-blue-500/5 rounded-full blur-[120px] pointer-events-none" />
+      <section id="waitlist" className="py-32 bg-black/60 backdrop-blur-md relative overflow-hidden z-10">
+        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[800px] h-[800px] bg-blue-500/10 rounded-full blur-[120px] pointer-events-none" />
         
         <div className="max-w-3xl mx-auto px-6 relative z-10">
-          <div className="bg-white border border-slate-200 shadow-2xl rounded-[3rem] p-12 md:p-20">
+          <div className="bg-black/40 backdrop-blur-2xl border border-white/10 shadow-[0_0_50px_rgba(0,0,0,0.5)] rounded-[3rem] p-12 md:p-20">
             <div className="text-center mb-12">
-              <div className="w-20 h-20 bg-[#0A192F] rounded-3xl flex items-center justify-center shadow-2xl border border-white/10 mx-auto mb-8">
-                <Lock className="w-10 h-10 text-gold" />
+              <div className="w-20 h-20 bg-gradient-to-br from-[#0A192F] to-blue-900 rounded-3xl flex items-center justify-center shadow-[inset_0_1px_0_rgba(255,255,255,0.2)] border border-white/10 mx-auto mb-8">
+                <Lock className="w-10 h-10 text-gold drop-shadow-[0_0_10px_rgba(181,148,16,0.5)]" />
               </div>
-              <h2 className="text-4xl font-bold mb-4 text-[#0A192F] tracking-tighter uppercase">Privilegio de Fundador</h2>
-              <p className="text-[#64748B] text-xl font-medium">El tren del desarrollo no se detiene ante la indecisión.</p>
+              <h2 className="text-4xl font-bold mb-4 text-white tracking-tighter uppercase drop-shadow-lg">Privilegio de Fundador</h2>
+              <p className="text-slate-400 text-xl font-medium">El tren del desarrollo no se detiene ante la indecisión.</p>
             </div>
 
             {isSuccess ? (
@@ -1713,12 +1967,12 @@ export default function App() {
                 animate={{ opacity: 1, scale: 1 }}
                 className="text-center p-8"
               >
-                <div className="w-24 h-24 bg-emerald-50 rounded-full flex items-center justify-center mx-auto mb-8">
-                  <CheckCircle2 className="w-12 h-12 text-emerald-500" />
+                <div className="w-24 h-24 bg-emerald-500/20 rounded-full flex items-center justify-center mx-auto mb-8 border border-emerald-500/30">
+                  <CheckCircle2 className="w-12 h-12 text-emerald-400 drop-shadow-[0_0_10px_rgba(16,185,129,0.5)]" />
                 </div>
-                <h3 className="text-3xl font-bold text-[#0A192F] mb-4 tracking-tight">Posición Asegurada</h3>
-                <p className="text-[#64748B] mb-8 text-lg">Tu perfil ha sido registrado bajo el protocolo Data Cero.</p>
-                <div className="text-sm font-mono text-emerald-600 break-all bg-emerald-50 p-6 rounded-2xl border border-emerald-100">
+                <h3 className="text-3xl font-bold text-white mb-4 tracking-tight drop-shadow-md">Posición Asegurada</h3>
+                <p className="text-slate-400 mb-8 text-lg">Tu perfil ha sido registrado bajo el protocolo Data Cero.</p>
+                <div className="text-sm font-mono text-emerald-400 break-all bg-emerald-500/10 p-6 rounded-2xl border border-emerald-500/20 shadow-[inset_0_1px_0_rgba(16,185,129,0.2)]">
                   Hash de reserva asignado: <br />
                   <span className="font-bold">{mockHash}</span>
                 </div>
@@ -1727,34 +1981,34 @@ export default function App() {
               <form onSubmit={handleWaitlistSubmit} className="space-y-8">
                 <div className="grid md:grid-cols-2 gap-8">
                   <div>
-                    <label className="block text-xs font-bold text-slate-500 uppercase tracking-widest mb-3">Nombre Completo</label>
+                    <label className="block text-xs font-bold text-slate-400 uppercase tracking-widest mb-3">Nombre Completo</label>
                     <input 
                       type="text" 
                       required
                       value={formData.name}
                       onChange={(e) => setFormData({...formData, name: e.target.value})}
-                      className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-6 py-5 text-[#0A192F] focus:outline-none focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500/30 transition-all"
+                      className="w-full bg-white/5 border border-white/10 rounded-2xl px-6 py-5 text-white placeholder:text-slate-600 focus:outline-none focus:ring-2 focus:ring-gold/50 focus:border-gold/50 transition-all backdrop-blur-sm"
                       placeholder="Ej. Diego Sullivan"
                     />
                   </div>
                   <div>
-                    <label className="block text-xs font-bold text-slate-500 uppercase tracking-widest mb-3">Correo Electrónico</label>
+                    <label className="block text-xs font-bold text-slate-400 uppercase tracking-widest mb-3">Correo Electrónico</label>
                     <input 
                       type="email" 
                       required
                       value={formData.email}
                       onChange={(e) => setFormData({...formData, email: e.target.value})}
-                      className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-6 py-5 text-[#0A192F] focus:outline-none focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500/30 transition-all"
+                      className="w-full bg-white/5 border border-white/10 rounded-2xl px-6 py-5 text-white placeholder:text-slate-600 focus:outline-none focus:ring-2 focus:ring-gold/50 focus:border-gold/50 transition-all backdrop-blur-sm"
                       placeholder="diego@pachanova.store"
                     />
                   </div>
                 </div>
                 <div>
-                  <label className="block text-xs font-bold text-slate-500 uppercase tracking-widest mb-3">Interés de Inversión</label>
+                  <label className="block text-xs font-bold text-slate-400 uppercase tracking-widest mb-3">Interés de Inversión</label>
                   <select 
                     value={formData.interest}
                     onChange={(e) => setFormData({...formData, interest: e.target.value})}
-                    className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-6 py-5 text-[#0A192F] focus:outline-none focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500/30 transition-all appearance-none cursor-pointer"
+                    className="w-full bg-white/5 border border-white/10 rounded-2xl px-6 py-5 text-white focus:outline-none focus:ring-2 focus:ring-gold/50 focus:border-gold/50 transition-all appearance-none cursor-pointer backdrop-blur-sm [&>option]:bg-[#0A192F] [&>option]:text-white"
                   >
                     <option value="Retail">Retail ($1,000 - $9,999)</option>
                     <option value="Pro">Pro ($10,000 - $29,999)</option>
@@ -1764,18 +2018,18 @@ export default function App() {
                 <button 
                   type="submit" 
                   disabled={isSubmitting}
-                  className="w-full py-6 bg-[#0A192F] hover:bg-[#111827] text-white font-bold text-xl rounded-2xl transition-all duration-300 disabled:opacity-70 disabled:cursor-not-allowed flex items-center justify-center gap-3 shadow-2xl hover:-translate-y-1 group relative overflow-hidden"
+                  className="w-full py-6 bg-gradient-to-r from-gold to-yellow-600 hover:brightness-110 text-[#0A192F] font-bold text-xl rounded-2xl transition-all duration-300 disabled:opacity-70 disabled:cursor-not-allowed flex items-center justify-center gap-3 shadow-[0_0_20px_rgba(181,148,16,0.3)] hover:-translate-y-1 group relative overflow-hidden"
                 >
-                  <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/5 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-1000" />
+                  <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-1000" />
                   {isSubmitting ? (
-                    <span className="w-6 h-6 border-4 border-white/30 border-t-white rounded-full animate-spin" />
+                    <span className="w-6 h-6 border-4 border-[#0A192F]/30 border-t-[#0A192F] rounded-full animate-spin" />
                   ) : (
                     <span className="relative z-10 flex items-center gap-3">
                       Asegurar Mi Legado <ArrowRight className="w-6 h-6 group-hover:translate-x-1 transition-transform" />
                     </span>
                   )}
                 </button>
-                <p className="text-center text-xs text-slate-400 font-medium">
+                <p className="text-center text-xs text-slate-500 font-medium">
                   Al registrarte, reconoces que tu cuenta iniciará con balance cero y estará sujeta a futura verificación KYC/AML.
                 </p>
               </form>
@@ -2012,32 +2266,32 @@ export default function App() {
               initial={{ opacity: 0, y: 20, scale: 0.95 }}
               animate={{ opacity: 1, y: 0, scale: 1 }}
               exit={{ opacity: 0, y: 20, scale: 0.95 }}
-              className="absolute bottom-20 right-0 w-[350px] sm:w-[400px] bg-white border border-slate-200 rounded-2xl shadow-2xl overflow-hidden flex flex-col h-[500px]"
+              className="absolute bottom-20 right-0 w-[350px] sm:w-[400px] bg-black/80 backdrop-blur-2xl border border-white/10 rounded-3xl shadow-[0_0_50px_rgba(0,0,0,0.5)] overflow-hidden flex flex-col h-[500px]"
             >
               {/* Chat Header */}
-              <div className="bg-navy p-4 flex items-center justify-between">
+              <div className="bg-white/5 border-b border-white/10 p-4 flex items-center justify-between">
                 <div className="flex items-center gap-3">
-                  <div className="w-8 h-8 rounded-full bg-white/10 flex items-center justify-center">
-                    <Cpu className="w-4 h-4 text-gold" />
+                  <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-gold/20 to-transparent border border-gold/30 flex items-center justify-center shadow-[inset_0_1px_0_rgba(255,255,255,0.2)]">
+                    <Cpu className="w-5 h-5 text-gold" />
                   </div>
                   <div>
-                    <h3 className="text-white font-bold text-sm tracking-tight">Oráculo de Inversión Agéntico</h3>
-                    <p className="text-emerald-400 text-[10px] font-mono uppercase tracking-widest animate-pulse">Exocórtex Activo</p>
+                    <h3 className="text-white font-bold text-sm tracking-tight drop-shadow-md">Oráculo de Inversión Agéntico</h3>
+                    <p className="text-emerald-400 text-[10px] font-mono uppercase tracking-widest animate-pulse">Exocórtex Predictivo v2.0</p>
                   </div>
                 </div>
-                <button onClick={() => setIsChatOpen(false)} className="text-white/60 hover:text-white transition-colors">
-                  <X className="w-5 h-5" />
+                <button onClick={() => setIsChatOpen(false)} className="w-8 h-8 rounded-full bg-white/5 hover:bg-white/10 flex items-center justify-center text-white/60 hover:text-white transition-colors">
+                  <X className="w-4 h-4" />
                 </button>
               </div>
 
               {/* Chat Messages */}
-              <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-surface">
+              <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-transparent custom-scrollbar">
                 {messages.map((msg, idx) => (
                   <div key={idx} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-                    <div className={`max-w-[85%] p-3 rounded-2xl text-sm leading-relaxed ${
+                    <div className={`max-w-[85%] p-4 rounded-2xl text-sm leading-relaxed shadow-lg ${
                       msg.role === 'user' 
-                        ? 'bg-navy text-white rounded-tr-sm' 
-                        : 'bg-white border border-slate-200 text-slate-700 rounded-tl-sm shadow-sm'
+                        ? 'bg-gradient-to-br from-blue-600 to-blue-800 text-white rounded-tr-sm border border-blue-500/50' 
+                        : 'bg-white/5 backdrop-blur-md border border-white/10 text-slate-300 rounded-tl-sm'
                     }`}>
                       {msg.text}
                     </div>
@@ -2045,13 +2299,13 @@ export default function App() {
                 ))}
                 {isTyping && (
                   <div className="flex justify-start">
-                    <div className="bg-white border border-slate-200 p-4 rounded-2xl rounded-tl-sm shadow-sm flex flex-col gap-2">
+                    <div className="bg-white/5 backdrop-blur-md border border-white/10 p-4 rounded-2xl rounded-tl-sm shadow-lg flex flex-col gap-2">
                       <div className="flex gap-1">
                         <span className="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-bounce" />
                         <span className="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-bounce" style={{ animationDelay: '0.2s' }} />
                         <span className="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-bounce" style={{ animationDelay: '0.4s' }} />
                       </div>
-                      <span className="text-[10px] font-mono text-slate-400 uppercase tracking-tighter animate-pulse">Analizando Ciclos Históricos...</span>
+                      <span className="text-[10px] font-mono text-emerald-400/70 uppercase tracking-tighter animate-pulse">Sincronizando Foresight Cuántico...</span>
                     </div>
                   </div>
                 )}
@@ -2059,20 +2313,20 @@ export default function App() {
               </div>
 
               {/* Chat Input */}
-              <form onSubmit={handleSendMessage} className="p-4 bg-white border-t border-slate-100 flex gap-2">
+              <form onSubmit={handleSendMessage} className="p-4 bg-white/5 border-t border-white/10 flex gap-2 backdrop-blur-md">
                 <input
                   type="text"
                   value={chatInput}
                   onChange={(e) => setChatInput(e.target.value)}
-                  placeholder="Pregunta sobre el proyecto..."
-                  className="flex-1 bg-surface border border-slate-200 rounded-xl px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-navy/20 focus:border-navy transition-all"
+                  placeholder="Inicia consulta al Exocórtex..."
+                  className="flex-1 bg-black/50 border border-white/10 rounded-xl px-4 py-3 text-sm text-white placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-gold/50 focus:border-gold/50 transition-all font-mono"
                 />
                 <button 
                   type="submit" 
                   disabled={!chatInput.trim() || isTyping}
-                  className="w-10 h-10 bg-navy text-white rounded-xl flex items-center justify-center hover:bg-navy/90 transition-colors disabled:opacity-50"
+                  className="w-12 h-12 bg-gradient-to-br from-gold to-yellow-600 text-[#0A192F] rounded-xl flex items-center justify-center hover:brightness-110 transition-all disabled:opacity-50 disabled:grayscale shadow-[0_0_15px_rgba(181,148,16,0.3)]"
                 >
-                  <Send className="w-4 h-4" />
+                  <Send className="w-5 h-5" />
                 </button>
               </form>
             </motion.div>
@@ -2082,9 +2336,14 @@ export default function App() {
         {/* FAB Button */}
         <button
           onClick={() => setIsChatOpen(!isChatOpen)}
-          className="w-14 h-14 bg-navy hover:bg-navy/90 text-white rounded-full shadow-xl shadow-navy/30 flex items-center justify-center transition-transform hover:scale-105 active:scale-95"
+          className="w-16 h-16 bg-gradient-to-br from-[#0A192F] to-blue-900 border border-white/20 hover:border-gold/50 text-white rounded-full shadow-[0_0_30px_rgba(0,0,0,0.5)] flex items-center justify-center transition-all duration-300 hover:scale-105 active:scale-95 group"
         >
-          {isChatOpen ? <X className="w-6 h-6" /> : <MessageSquare className="w-6 h-6" />}
+          {isChatOpen ? <X className="w-6 h-6" /> : (
+            <div className="relative">
+              <Cpu className="w-7 h-7 text-gold group-hover:animate-pulse" />
+              <span className="absolute -top-1 -right-1 w-3 h-3 bg-emerald-500 rounded-full border-2 border-[#0A192F]" />
+            </div>
+          )}
         </button>
       </div>
     </div>
